@@ -11,7 +11,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+    "http://localhost:5173",
+    "https://ai-receipt-expense-tracker-frontend.vercel.app"
+})
 public class AuthController {
 
     private final UserRepository userRepository;
