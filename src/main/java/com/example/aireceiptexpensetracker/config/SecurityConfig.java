@@ -19,6 +19,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http)
             throws Exception {
+
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> {})
@@ -26,31 +27,48 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers(
-                    "/expenses/**", "/receipts/**", "/dashboard/**",
-                    "/money/**", "/loans/**", "/payments/**", "/budget/**"
+                    "/expenses/**",
+                    "/receipts/**",
+                    "/dashboard/**",
+                    "/money/**",
+                    "/loans/**",
+                    "/payments/**",
+                    "/budget/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             );
+
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+
+        configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:5173",
             "http://localhost:5174",
-            "https://ai-receipt-expense-tracker-frontend.vercel.app"
+            "https://ai-receipt-expense-tracker-frontend.vercel.app",
+            "https://ai-receipt-expense-tracker-frontend-*.vercel.app"
         ));
+
         configuration.setAllowedMethods(List.of(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "OPTIONS"
         ));
+
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
             new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
