@@ -1,6 +1,7 @@
 package com.example.aireceiptexpensetracker.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "monthly_budgets")
@@ -9,6 +10,11 @@ public class MonthlyBudget {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     private Integer month;
     private Integer year;
@@ -99,5 +105,13 @@ public class MonthlyBudget {
 
     public void setOtherBudget(Double otherBudget) {
         this.otherBudget = otherBudget;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

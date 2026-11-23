@@ -2,6 +2,7 @@ package com.example.aireceiptexpensetracker.controller;
 
 import com.example.aireceiptexpensetracker.entity.User;
 import com.example.aireceiptexpensetracker.repository.UserRepository;
+import com.example.aireceiptexpensetracker.config.JwtService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,21 +12,20 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = {
-    "http://localhost:5173",
-    "https://ai-receipt-expense-tracker-frontend.vercel.app"
-})
 public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public AuthController(
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -73,6 +73,8 @@ public class AuthController {
                 Map.of(
                         "message", "Login successful",
                         "name", existingUser.getName(),
-                        "email", existingUser.getEmail()));
+                        "email", existingUser.getEmail(),
+                        "token", jwtService.generateToken(existingUser.getEmail()),
+                        "tokenType", "Bearer"));
     }
 }

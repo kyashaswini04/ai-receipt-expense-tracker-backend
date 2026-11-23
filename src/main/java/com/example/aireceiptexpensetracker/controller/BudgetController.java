@@ -4,6 +4,11 @@ import com.example.aireceiptexpensetracker.entity.Expense;
 import com.example.aireceiptexpensetracker.entity.MonthlyBudget;
 import com.example.aireceiptexpensetracker.entity.MoneyTransfer;
 import com.example.aireceiptexpensetracker.entity.Payment;
+import com.example.aireceiptexpensetracker.entity.User;
+import com.example.aireceiptexpensetracker.repository.UserRepository;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.aireceiptexpensetracker.repository.ExpenseRepository;
 import com.example.aireceiptexpensetracker.repository.MonthlyBudgetRepository;
@@ -19,24 +24,31 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/budget")
-@CrossOrigin(origins = "*")
 public class BudgetController {
 
     private final MonthlyBudgetRepository budgetRepository;
     private final ExpenseRepository expenseRepository;
     private final MoneyTransferRepository moneyTransferRepository;
     private final PaymentRepository paymentRepository;
+    private final UserRepository userRepository;
 
     public BudgetController(
             MonthlyBudgetRepository budgetRepository,
             ExpenseRepository expenseRepository,
             MoneyTransferRepository moneyTransferRepository,
-            PaymentRepository paymentRepository) {
+            PaymentRepository paymentRepository,
+            UserRepository userRepository) {
 
         this.budgetRepository = budgetRepository;
         this.expenseRepository = expenseRepository;
         this.moneyTransferRepository = moneyTransferRepository;
         this.paymentRepository = paymentRepository;
+        this.userRepository = userRepository;
+    }
+
+    private User currentUser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 
     // ==========================================
@@ -45,8 +57,25 @@ public class BudgetController {
 
     @PostMapping
     public MonthlyBudget saveBudget(
-            @RequestBody MonthlyBudget budget) {
+            @RequestBody MonthlyBudget incoming,
+            @AuthenticationPrincipal String email) {
 
+        User user = currentUser(email);
+        MonthlyBudget budget = budgetRepository
+                .findByUser_EmailAndMonthAndYear(email, incoming.getMonth(), incoming.getYear())
+                .orElseGet(MonthlyBudget::new);
+
+        // Copy only editable budget values; never accept another user's ID or owner.
+        budget.setUser(user);
+        budget.setMonth(incoming.getMonth());
+        budget.setYear(incoming.getYear());
+        budget.setSalary(incoming.getSalary());
+        budget.setShoppingBudget(incoming.getShoppingBudget());
+        budget.setGroceriesBudget(incoming.getGroceriesBudget());
+        budget.setFoodBudget(incoming.getFoodBudget());
+        budget.setTransportBudget(incoming.getTransportBudget());
+        budget.setPersonalCareBudget(incoming.getPersonalCareBudget());
+        budget.setOtherBudget(incoming.getOtherBudget());
         return budgetRepository.save(budget);
     }
 
@@ -57,10 +86,11 @@ public class BudgetController {
     @GetMapping("/{year}/{month}")
     public MonthlyBudget getBudget(
             @PathVariable Integer year,
-            @PathVariable Integer month) {
+            @PathVariable Integer month,
+            @AuthenticationPrincipal String email) {
 
         return budgetRepository
-                .findByMonthAndYear(month, year)
+                .findByUser_EmailAndMonthAndYear(email, month, year)
                 .orElse(null);
     }
 
@@ -71,14 +101,15 @@ public class BudgetController {
     @GetMapping("/summary/{year}/{month}")
     public Map<String, Object> getBudgetSummary(
             @PathVariable Integer year,
-            @PathVariable Integer month) {
+            @PathVariable Integer month,
+            @AuthenticationPrincipal String email) {
 
         // ------------------------------------------
         // GET BUDGET
         // ------------------------------------------
 
         MonthlyBudget budget = budgetRepository
-                .findByMonthAndYear(month, year)
+                .findByUser_EmailAndMonthAndYear(email, month, year)
                 .orElseThrow(() -> new RuntimeException(
                         "Budget not found"));
 
@@ -96,7 +127,8 @@ public class BudgetController {
         // ==========================================
 
         List<Expense> expenses = expenseRepository
-                .findByExpenseDateBetween(
+                .findByUser_EmailAndExpenseDateBetween(
+                        email,
                         startDate,
                         endDate);
 
@@ -166,7 +198,7 @@ public class BudgetController {
         // 2. MONEY GIVEN
         // ==========================================
 
-        List<MoneyTransfer> moneyTransfers = moneyTransferRepository.findAll();
+        List<MoneyTransfer> moneyTransfers = moneyTransferRepository.findByUser_EmailOrderByTransactionDateDesc(email);
 
         double moneyGiven = 0;
 
@@ -198,7 +230,7 @@ public class BudgetController {
         // 3. LOAN EMI + CHIT FUND PAYMENTS
         // ==========================================
 
-        List<Payment> payments = paymentRepository.findAll();
+        List<Payment> payments = paymentRepository.findByLoan_User_EmailOrderByPaymentDateDesc(email);
 
         double loanPayments = 0;
         double chitFundPayments = 0;

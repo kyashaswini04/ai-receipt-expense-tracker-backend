@@ -1,6 +1,7 @@
 package com.example.aireceiptexpensetracker.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDate;
 
@@ -11,6 +12,11 @@ public class MoneyTransfer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     // GIVEN = money you gave to someone
     // TAKEN = money you took from someone
@@ -116,5 +122,13 @@ public class MoneyTransfer {
     public enum TransferType {
         GIVEN,
         TAKEN
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

@@ -36,3 +36,13 @@ build/
 .DS_Store
 frontend/
 uploads/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+application-local.properties
+application-prod.properties
+secrets/
+*.pem
+*.key

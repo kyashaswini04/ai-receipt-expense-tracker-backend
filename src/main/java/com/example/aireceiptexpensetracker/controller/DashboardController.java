@@ -2,9 +2,8 @@ package com.example.aireceiptexpensetracker.controller;
 
 import com.example.aireceiptexpensetracker.entity.Expense;
 import com.example.aireceiptexpensetracker.repository.ExpenseRepository;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashMap;
@@ -13,116 +12,44 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/dashboard")
-@CrossOrigin(origins = "*")
 public class DashboardController {
-
     private final ExpenseRepository expenseRepository;
-
-    public DashboardController(ExpenseRepository expenseRepository) {
-        this.expenseRepository = expenseRepository;
-    }
-
-    // ==========================================
-    // DASHBOARD SUMMARY
-    // ==========================================
+    public DashboardController(ExpenseRepository expenseRepository) { this.expenseRepository = expenseRepository; }
 
     @GetMapping("/summary")
-    public Map<String, Object> getSummary() {
-
-        List<Expense> expenses = expenseRepository.findAll();
-
-        double totalSpending = 0;
-
-        for (Expense expense : expenses) {
-
-            if (expense.getAmount() != null) {
-                totalSpending += expense.getAmount();
-            }
-        }
-
+    public Map<String, Object> getSummary(@AuthenticationPrincipal String email) {
+        List<Expense> expenses = expenseRepository.findByUser_EmailOrderByExpenseDateDesc(email);
+        double total = expenses.stream().filter(e -> e.getAmount() != null).mapToDouble(Expense::getAmount).sum();
         Map<String, Object> result = new HashMap<>();
-
         result.put("totalExpenses", expenses.size());
-        result.put("totalSpending", totalSpending);
-
+        result.put("totalSpending", total);
         return result;
     }
 
-    // ==========================================
-    // CATEGORY-WISE SPENDING
-    // ==========================================
-
     @GetMapping("/categories")
-    public Map<String, Double> getCategorySpending() {
-
-        List<Expense> expenses = expenseRepository.findAll();
-
-        Map<String, Double> categoryTotals = new HashMap<>();
-
-        for (Expense expense : expenses) {
-
-            String category = expense.getCategory();
-
-            Double amount = expense.getAmount();
-
-            if (category == null) {
-                category = "Unknown";
-            }
-
-            if (amount == null) {
-                amount = 0.0;
-            }
-
-            categoryTotals.put(
-                    category,
-                    categoryTotals.getOrDefault(category, 0.0)
-                            + amount);
+    public Map<String, Double> getCategorySpending(@AuthenticationPrincipal String email) {
+        Map<String, Double> totals = new HashMap<>();
+        for (Expense e : expenseRepository.findByUser_EmailOrderByExpenseDateDesc(email)) {
+            String category = e.getCategory() == null ? "Unknown" : e.getCategory();
+            totals.merge(category, e.getAmount() == null ? 0.0 : e.getAmount(), Double::sum);
         }
-
-        return categoryTotals;
+        return totals;
     }
-
-    // ==========================================
-    // EXPENSE HISTORY
-    // ==========================================
 
     @GetMapping("/expenses")
-    public List<Expense> getExpenseHistory() {
-
-        return expenseRepository.findAll();
+    public List<Expense> getExpenseHistory(@AuthenticationPrincipal String email) {
+        return expenseRepository.findByUser_EmailOrderByExpenseDateDesc(email);
     }
 
-    // ==========================================
-    // MONTHLY SPENDING
-    // ==========================================
-
     @GetMapping("/monthly")
-    public Map<String, Double> getMonthlySpending() {
-
-        List<Expense> expenses = expenseRepository.findAll();
-
-        Map<String, Double> monthlyTotals = new HashMap<>();
-
-        for (Expense expense : expenses) {
-
-            LocalDate date = expense.getExpenseDate();
-
-            Double amount = expense.getAmount();
-
-            if (date == null || amount == null) {
-                continue;
+    public Map<String, Double> getMonthlySpending(@AuthenticationPrincipal String email) {
+        Map<String, Double> totals = new HashMap<>();
+        for (Expense e : expenseRepository.findByUser_EmailOrderByExpenseDateDesc(email)) {
+            LocalDate date = e.getExpenseDate();
+            if (date != null && e.getAmount() != null) {
+                totals.merge(YearMonth.from(date).toString(), e.getAmount(), Double::sum);
             }
-
-            YearMonth month = YearMonth.from(date);
-
-            String monthName = month.toString();
-
-            monthlyTotals.put(
-                    monthName,
-                    monthlyTotals.getOrDefault(monthName, 0.0)
-                            + amount);
         }
-
-        return monthlyTotals;
+        return totals;
     }
 }

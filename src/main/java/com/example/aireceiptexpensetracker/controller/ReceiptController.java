@@ -2,6 +2,11 @@ package com.example.aireceiptexpensetracker.controller;
 
 import com.example.aireceiptexpensetracker.entity.Expense;
 import com.example.aireceiptexpensetracker.repository.ExpenseRepository;
+import com.example.aireceiptexpensetracker.repository.UserRepository;
+import com.example.aireceiptexpensetracker.entity.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import com.example.aireceiptexpensetracker.service.CategoryService;
 import com.example.aireceiptexpensetracker.service.OcrService;
 import com.example.aireceiptexpensetracker.service.ReceiptParserService;
@@ -18,28 +23,31 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/receipts")
-@CrossOrigin(origins = "*")
 public class ReceiptController {
 
     private final OcrService ocrService;
     private final ReceiptParserService receiptParserService;
     private final ExpenseRepository expenseRepository;
     private final CategoryService categoryService;
+    private final UserRepository userRepository;
 
     public ReceiptController(
             OcrService ocrService,
             ReceiptParserService receiptParserService,
             ExpenseRepository expenseRepository,
-            CategoryService categoryService) {
+            CategoryService categoryService,
+            UserRepository userRepository) {
         this.ocrService = ocrService;
         this.receiptParserService = receiptParserService;
         this.expenseRepository = expenseRepository;
         this.categoryService = categoryService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadReceipt(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal String email) {
 
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -97,6 +105,9 @@ public class ReceiptController {
             expense.setDescription(
                     items.isEmpty() ? "Receipt expense" : String.join(", ", items));
 
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+            expense.setUser(user);
             Expense savedExpense = expenseRepository.save(expense);
 
             return ResponseEntity.ok(Map.of(
